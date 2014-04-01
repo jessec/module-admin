@@ -1,12 +1,12 @@
 package io.core9.plugin.admin;
 
 import io.core9.core.boot.CoreBootStrategy;
+import io.core9.module.auth.AuthenticationPlugin;
+import io.core9.module.auth.User;
 import io.core9.plugin.server.HostManager;
 import io.core9.plugin.server.handler.Middleware;
 import io.core9.plugin.server.request.Request;
 import io.core9.plugin.server.vertx.VertxServer;
-import io.core9.plugin.session.Session;
-import io.core9.plugin.session.SessionManager;
 
 import java.util.HashMap;
 import java.util.List;
@@ -17,7 +17,6 @@ import net.xeoh.plugins.base.annotations.PluginImplementation;
 import net.xeoh.plugins.base.annotations.injections.InjectPlugin;
 
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.shiro.subject.Subject;
 
 @PluginImplementation
 public class AdminDispatcherImpl extends CoreBootStrategy implements AdminDispatcher {
@@ -31,7 +30,7 @@ public class AdminDispatcherImpl extends CoreBootStrategy implements AdminDispat
 	private HostManager manager;
 
 	@InjectPlugin
-	private SessionManager sessionManager;
+	private AuthenticationPlugin authentication;
 
 	@Override
 	public Integer getPriority() {
@@ -55,9 +54,8 @@ public class AdminDispatcherImpl extends CoreBootStrategy implements AdminDispat
 		server.use("/admin/:controller((/:type)(/:id)?)?", new Middleware() {
 			@Override
 			public void handle(Request request) {
-				Session session = sessionManager.getVertxSession(request, server);
-				Subject currentUser = sessionManager.getCurrentUser(session);
-				if (currentUser.hasRole("admin") || (System.getProperty("DEBUG") != null && System.getProperty("DEBUG").equals("true"))) {
+				User user = authentication.getUser(request);
+				if (user.isPermitted("dashboard:access") || (System.getProperty("DEBUG") != null && System.getProperty("DEBUG").equals("true"))) {
 					adminplugins.get(request.getParams().get("controller")).handle(request);
 				} else {
 					request.getResponse().setStatusCode(401);
